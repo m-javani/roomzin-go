@@ -425,6 +425,10 @@ For the complete interface definition, see [`api/client.go`](api/client.go). All
 
 ---
 
+## Examples
+
+A complete smoke example is available in the examples/ directory. It demonstrates the SDK's core features and can be run as a reference implementation or to verify your Roomzin setup.
+
 ## Documentation
 
 For Roomzin concepts, deployment, and administration:
