@@ -59,6 +59,7 @@ import "github.com/m-javani/roomzin-go/pkg/cluster"
 staticDiscovery := []types.NodeAddr{
     {NodeID: "roomzin-0", Host: "172.20.0.10", TcpPort: 7777, ApiPort: 8080},
     {NodeID: "roomzin-1", Host: "172.20.0.11", TcpPort: 7777, ApiPort: 8080},
+    {NodeID: "roomzin-2", Host: "172.20.0.12", TcpPort: 7777, ApiPort: 8080},
 }
 
 cfg, err := cluster.NewConfigBuilder().
