@@ -1,14 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"slices"
 	"time"
 
-	"github.com/m-javani/roomzin-go/pkg/api"
-	"github.com/m-javani/roomzin-go/pkg/cluster"
-	"github.com/m-javani/roomzin-go/pkg/single"
+	"github.com/m-javani/roomzin-go/pkg/client"
 	"github.com/m-javani/roomzin-go/pkg/types"
 )
 
@@ -16,7 +15,8 @@ import (
 // CONFIGURATION
 // ============================================================================
 
-// Change this to "cluster" to test against a Roomzin cluster
+// Change this to "cluster" to test against a Roomzin cluster via router
+// or "standalone" for direct connection to a standalone server
 const mode = "cluster"
 
 // Standalone configuration
@@ -27,12 +27,11 @@ const (
 	timeout        = 5 * time.Second
 )
 
-// Cluster configuration (update these IPs to match your cluster)
-var staticDiscovery = []types.NodeAddr{
-	{NodeID: "roomzin-0", Host: "172.20.0.10", TcpPort: 7777, ApiPort: 8080},
-	{NodeID: "roomzin-1", Host: "172.20.0.11", TcpPort: 7777, ApiPort: 8080},
-	{NodeID: "roomzin-2", Host: "172.20.0.12", TcpPort: 7777, ApiPort: 8080},
-}
+// Cluster configuration (router address)
+const (
+	routerHost = "router.example.com" // or IP address
+	routerPort = 7777
+)
 
 // Test data parameters
 const (
@@ -42,51 +41,47 @@ const (
 	numDays            = 3
 )
 
-func GetStandaloneClient() (api.CacheClientAPI, error) {
-	cfg, err := single.NewConfigBuilder().
-		WithHost(standaloneHost).
-		WithTCPPort(standalonePort).
-		WithToken(token).
-		WithTimeout(timeout).
-		WithKeepAlive(30 * time.Second).
-		Build()
-	if err != nil {
-		return nil, err
-	}
-	return single.New(&cfg)
-}
+// ============================================================================
+// CLIENT CREATION
+// ============================================================================
 
-// change the connection config to match your running roomzin cluster
-func GetClusterClient() (api.CacheClientAPI, error) {
-	cfg, err := cluster.NewConfigBuilder().
-		WithSeedNodeIDs("roomzin-0,roomzin-1,roomzin-2").
-		WithStaticDiscovery(staticDiscovery).
-		WithTCPPort(7777).
-		WithAPIPort(8080).
+func createClient() (*client.Client, error) {
+	if mode == "standalone" {
+		cfg, err := client.NewConfigBuilder().
+			WithAddr(standaloneHost).
+			WithPort(standalonePort).
+			WithToken(token).
+			WithTimeout(timeout).
+			WithKeepAlive(30 * time.Second).
+			WithMode(client.StandaloneMode).
+			Build()
+		if err != nil {
+			return nil, err
+		}
+		return client.New(&cfg)
+	}
+
+	// Cluster mode - connect to router
+	cfg, err := client.NewConfigBuilder().
+		WithAddr(routerHost).
+		WithPort(routerPort).
 		WithToken(token).
 		WithTimeout(30 * time.Second).
 		WithKeepAlive(30 * time.Second).
+		WithMode(client.ClusterMode).
 		Build()
 	if err != nil {
 		return nil, err
 	}
-
-	return cluster.New(&cfg)
+	return client.New(&cfg)
 }
 
 // ============================================================================
 // MAIN FUNCTION - CLEAR LINEAR FLOW
 // ============================================================================
 
-func createClient() (api.CacheClientAPI, error) {
-	if mode == "standalone" {
-		return GetStandaloneClient()
-	}
-
-	return GetClusterClient()
-}
-
 func main() {
+	ctx := context.Background()
 	fmt.Println("=== Roomzin API Example ===")
 	fmt.Printf("Mode: %s\n\n", mode)
 
@@ -117,7 +112,7 @@ func main() {
 			lon := -74.0060 + float64(p)*0.001
 			amenities := []string{"wifi", "pool"}
 
-			if err := client.SetProp(types.SetPropPayload{
+			if err := client.SetProp(ctx, segment, types.SetPropPayload{
 				Segment:      segment,
 				Area:         "area_1",
 				PropertyID:   propID,
@@ -137,8 +132,9 @@ func main() {
 
 	// check PropExist
 	p1 := createdProps[len(createdProps)-1]
+	segment := "seg_1"
 	if err := waitForCondition(2*time.Second, func() (bool, error) {
-		return client.PropExist(p1)
+		return client.PropExist(ctx, segment, p1)
 	}); err != nil {
 		log.Fatalf("Property %s did not become available: %v", p1, err)
 	}
@@ -157,6 +153,7 @@ func main() {
 
 	// Set packages for all properties
 	for s := 1; s <= numSegments; s++ {
+		segment := fmt.Sprintf("seg_%d", s)
 		for p := 1; p <= numPropsPerSegment; p++ {
 			propID := fmt.Sprintf("seg_%d_p%d", s, p)
 
@@ -168,7 +165,7 @@ func main() {
 					price := uint32(100 + p*10)
 					rateFeatures := []string{"free_cancellation", "free_wifi"}
 
-					if err := client.SetRoomPkg(types.SetRoomPkgPayload{
+					if err := client.SetRoomPkg(ctx, segment, types.SetRoomPkgPayload{
 						PropertyID:   propID,
 						RoomType:     roomType,
 						Date:         date,
@@ -185,7 +182,7 @@ func main() {
 
 	// Verify room lists for first property
 	testProp := "seg_1_p1"
-	rooms, err := client.PropRoomList(testProp)
+	rooms, err := client.PropRoomList(ctx, segment, testProp)
 	if err != nil {
 		log.Fatalf("Failed to get room list for %s: %v", testProp, err)
 	}
@@ -196,7 +193,7 @@ func main() {
 
 	// Verify date lists for first room
 	testRoom := "room_1"
-	dateList, err := client.PropRoomDateList(types.PropRoomDateListPayload{
+	dateList, err := client.PropRoomDateList(ctx, segment, types.PropRoomDateListPayload{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 	})
@@ -209,7 +206,7 @@ func main() {
 	fmt.Printf("	PropRoomDateList: %+v\n", dateList)
 
 	// Spot check: get a specific room/day
-	_, err = client.GetPropRoomDay(types.GetRoomDayRequest{
+	_, err = client.GetPropRoomDay(ctx, segment, types.GetRoomDayRequest{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 		Date:       dates[0],
@@ -228,7 +225,7 @@ func main() {
 	testRoom = "room_1"
 
 	// Get initial availability
-	initial, err := client.GetPropRoomDay(types.GetRoomDayRequest{
+	initial, err := client.GetPropRoomDay(ctx, segment, types.GetRoomDayRequest{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 		Date:       testDate,
@@ -240,7 +237,7 @@ func main() {
 
 	// SetRoomAvl
 	newAvail := uint8(20)
-	_, err = client.SetRoomAvl(types.UpdRoomAvlPayload{
+	_, err = client.SetRoomAvl(ctx, segment, types.UpdRoomAvlPayload{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 		Date:       testDate,
@@ -252,7 +249,7 @@ func main() {
 	fmt.Printf("	SetRoomAvl: %d → %d\n", initial.Availability, newAvail)
 
 	// IncRoomAvl
-	incResult, err := client.IncRoomAvl(types.UpdRoomAvlPayload{
+	incResult, err := client.IncRoomAvl(ctx, segment, types.UpdRoomAvlPayload{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 		Date:       testDate,
@@ -264,7 +261,7 @@ func main() {
 	fmt.Printf("	IncRoomAvl: %d → %d\n", newAvail, incResult)
 
 	// DecRoomAvl
-	decResult, err := client.DecRoomAvl(types.UpdRoomAvlPayload{
+	decResult, err := client.DecRoomAvl(ctx, segment, types.UpdRoomAvlPayload{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 		Date:       testDate,
@@ -282,8 +279,8 @@ func main() {
 
 	limit := uint64(100)
 	maxPrice := uint32(150)
-	results, err := client.SearchAvail(types.SearchAvailPayload{
-		Segment:    "seg_1",
+	results, err := client.SearchAvail(ctx, "seg_1", types.SearchAvailPayload{
+		Segment:    "seg_1", // Still needed for the payload itself
 		RoomType:   "room_1",
 		Date:       []string{dates[0]},
 		FinalPrice: &maxPrice,
@@ -301,7 +298,7 @@ func main() {
 
 	// 6.1: DelRoomDay
 	fmt.Println("	DelRoomDay...")
-	if err := client.DelRoomDay(types.DelRoomDayRequest{
+	if err := client.DelRoomDay(ctx, segment, types.DelRoomDayRequest{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 		Date:       testDate,
@@ -311,7 +308,7 @@ func main() {
 
 	// Verify date was removed
 	if err := waitForCondition(2*time.Second, func() (bool, error) {
-		dateList, err := client.PropRoomDateList(types.PropRoomDateListPayload{
+		dateList, err := client.PropRoomDateList(ctx, segment, types.PropRoomDateListPayload{
 			PropertyID: testProp,
 			RoomType:   testRoom,
 		})
@@ -328,7 +325,7 @@ func main() {
 
 	// 6.2: DelPropRoom
 	fmt.Println("	DelPropRoom...")
-	if err := client.DelPropRoom(types.DelPropRoomPayload{
+	if err := client.DelPropRoom(ctx, segment, types.DelPropRoomPayload{
 		PropertyID: testProp,
 		RoomType:   testRoom,
 	}); err != nil {
@@ -337,7 +334,7 @@ func main() {
 
 	// Verify room was removed
 	if err := waitForCondition(2*time.Second, func() (bool, error) {
-		exists, err := client.PropRoomExist(types.PropRoomExistPayload{
+		exists, err := client.PropRoomExist(ctx, segment, types.PropRoomExistPayload{
 			PropertyID: testProp,
 			RoomType:   testRoom,
 		})
@@ -348,13 +345,13 @@ func main() {
 
 	// 6.3: DelProp
 	fmt.Println("	DelProp...")
-	if err := client.DelProp(testProp); err != nil {
+	if err := client.DelProp(ctx, segment, testProp); err != nil {
 		log.Fatalf("DelProp failed: %v", err)
 	}
 
 	// Verify property was removed
 	if err := waitForCondition(2*time.Second, func() (bool, error) {
-		exists, err := client.PropExist(testProp)
+		exists, err := client.PropExist(ctx, segment, testProp)
 		return !exists, err
 	}); err != nil {
 		log.Fatalf("Property %s still exists after DelProp: %v", testProp, err)
@@ -362,13 +359,13 @@ func main() {
 
 	// 6.4: DelSegment
 	fmt.Println("	DelSegment...")
-	if err := client.DelSegment("seg_1"); err != nil {
+	if err := client.DelSegment(ctx, "seg_1"); err != nil {
 		log.Fatalf("DelSegment failed: %v", err)
 	}
 
 	// Verify segment was removed
 	if err := waitForCondition(2*time.Second, func() (bool, error) {
-		props, err := client.SearchProp(types.SearchPropPayload{
+		props, err := client.SearchProp(ctx, "seg_1", types.SearchPropPayload{
 			Segment: "seg_1",
 		})
 		if err != nil {
@@ -385,7 +382,7 @@ func main() {
 	fmt.Println("[7/7] Cleaning up...")
 
 	// Delete seg_2 (which still has data)
-	if err := client.DelSegment("seg_2"); err != nil {
+	if err := client.DelSegment(ctx, "seg_2"); err != nil {
 		log.Printf("Warning: Failed to delete seg_2: %v", err)
 	} else {
 		fmt.Println("	Cleaned up seg_2")
