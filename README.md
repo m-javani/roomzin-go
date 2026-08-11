@@ -295,29 +295,6 @@ for _, result := range results {
 }
 ```
 
-### GetSegments
-Lists all active segments with their property counts.
-
-```go
-// Get all segments from the router
-segments, err := cli.GetSegments(ctx, "")
-
-// Get info for a specific segment
-segments, err := cli.GetSegments(ctx, "downtown")
-
-for _, seg := range segments {
-    fmt.Printf("%s: %d properties\n", seg.Segment, seg.Count)
-}
-```
-
-### GetCodecs
-Gets the current codec registry (used internally for validation).
-
-```go
-codecs, err := cli.GetCodecs()
-fmt.Println(codecs.RateFeatures)
-```
-
 ---
 
 ## Delete Operations

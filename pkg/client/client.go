@@ -489,24 +489,3 @@ func (c *Client) GetPropRoomDay(ctx context.Context, segment string, p types.Get
 	}
 	return result, nil
 }
-
-// GetSegments returns information about all segments
-// If segment is empty, returns all segments (router handles this)
-// If segment is provided, returns info for that specific segment
-func (c *Client) GetSegments(ctx context.Context, segment string) ([]types.SegmentInfo, error) {
-	payload, err := command.BuildGetSegmentsPayload()
-	if err != nil {
-		return nil, types.RzError(err)
-	}
-
-	res, err := c.handler.Execute(ctx, segment, false, payload)
-	if err != nil {
-		return nil, types.RzError(err)
-	}
-
-	result, err := command.ParseGetSegmentsResp(res.Status, res.Fields)
-	if err != nil {
-		return result, types.RzError(err)
-	}
-	return result, nil
-}
