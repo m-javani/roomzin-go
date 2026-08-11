@@ -10,7 +10,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -32,7 +31,6 @@ const (
 type Config struct {
 	Addr      string
 	Port      int
-	AuthToken string
 	Timeout   time.Duration
 	KeepAlive time.Duration
 	Mode      ConnectionMode
@@ -77,7 +75,7 @@ func (h *Handler) reconnect() error {
 	}
 
 	addr := net.JoinHostPort(h.config.Addr, strconv.Itoa(h.config.Port))
-	conn, err := dial(addr, h.config.AuthToken, h.config.Timeout, h.config.KeepAlive)
+	conn, err := dial(addr, h.config.Timeout, h.config.KeepAlive)
 	if err != nil {
 		return err
 	}
@@ -87,7 +85,7 @@ func (h *Handler) reconnect() error {
 	return nil
 }
 
-func dial(addr string, token string, timeout, keepAlive time.Duration) (*net.TCPConn, error) {
+func dial(addr string, timeout, keepAlive time.Duration) (*net.TCPConn, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -105,42 +103,9 @@ func dial(addr string, token string, timeout, keepAlive time.Duration) (*net.TCP
 		return nil, fmt.Errorf("unexpected connection type for %s", addr)
 	}
 
-	// Authentication handshake
-	if err := handshake(tcpConn, token, timeout); err != nil {
-		return nil, fmt.Errorf("%v, failed to handshake to %s", err, addr)
-	}
-
 	tcpConn.SetKeepAlive(true)
 	tcpConn.SetKeepAlivePeriod(keepAlive)
 	return tcpConn, nil
-}
-
-func handshake(conn *net.TCPConn, token string, timeout time.Duration) error {
-	_ = conn.SetDeadline(time.Now().Add(timeout))
-	defer conn.SetDeadline(time.Time{})
-
-	// Send framed login
-	payload, _ := protocol.BuildLoginPayload(token)
-	frame := protocol.PrependHeader(0, payload)
-	if _, err := conn.Write(frame); err != nil {
-		return err
-	}
-
-	// Read plain-text reply
-	buf := make([]byte, 32)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	switch string(buf[:n]) {
-	case "LOGIN OK":
-		return nil
-	case "LOGIN FAILED":
-		return errors.New("AUTH_ERROR: invalid token")
-	default:
-		return fmt.Errorf("RESPONSE_ERROR: unexpected login reply %q", buf[:n])
-	}
 }
 
 func (h *Handler) Close() error {

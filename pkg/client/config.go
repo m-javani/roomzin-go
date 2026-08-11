@@ -34,9 +34,6 @@ type Config struct {
 	// Port is the TCP port
 	Port int
 
-	// AuthToken is the authentication token
-	AuthToken string
-
 	// Timeout is the request timeout
 	Timeout time.Duration
 
@@ -75,12 +72,6 @@ func (b *ConfigBuilder) WithPort(port int) *ConfigBuilder {
 	return b
 }
 
-// WithToken sets the authentication token
-func (b *ConfigBuilder) WithToken(token string) *ConfigBuilder {
-	b.config.AuthToken = token
-	return b
-}
-
 // WithTimeout sets the request timeout
 func (b *ConfigBuilder) WithTimeout(d time.Duration) *ConfigBuilder {
 	b.config.Timeout = d
@@ -116,10 +107,6 @@ func (b *ConfigBuilder) validate() error {
 
 	if b.config.Port == 0 {
 		errs = append(errs, errors.New("TCP port is required"))
-	}
-
-	if b.config.AuthToken == "" {
-		errs = append(errs, errors.New("authentication requires a token"))
 	}
 
 	if len(errs) == 0 {

@@ -23,7 +23,6 @@ const mode = "cluster"
 const (
 	standaloneHost = "127.0.0.1"
 	standalonePort = 7777
-	token          = "abc123"
 	timeout        = 5 * time.Second
 )
 
@@ -50,7 +49,6 @@ func createClient() (*client.Client, error) {
 		cfg, err := client.NewConfigBuilder().
 			WithAddr(standaloneHost).
 			WithPort(standalonePort).
-			WithToken(token).
 			WithTimeout(timeout).
 			WithKeepAlive(30 * time.Second).
 			WithMode(client.StandaloneMode).
@@ -65,7 +63,6 @@ func createClient() (*client.Client, error) {
 	cfg, err := client.NewConfigBuilder().
 		WithAddr(routerHost).
 		WithPort(routerPort).
-		WithToken(token).
 		WithTimeout(30 * time.Second).
 		WithKeepAlive(30 * time.Second).
 		WithMode(client.ClusterMode).

@@ -47,7 +47,6 @@ import "github.com/m-javani/roomzin-go/pkg/client"
 cfg, err := client.NewConfigBuilder().
     WithAddr("127.0.0.1").
     WithPort(7777).
-    WithToken("abc123").
     WithTimeout(5 * time.Second).
     WithKeepAlive(30 * time.Second).
     WithMode(client.StandaloneMode).
@@ -73,7 +72,6 @@ import "github.com/m-javani/roomzin-go/pkg/client"
 cfg, err := client.NewConfigBuilder().
     WithAddr("router.example.com").
     WithPort(7777).
-    WithToken("abc123").
     WithTimeout(30 * time.Second).
     WithKeepAlive(30 * time.Second).
     WithMode(client.ClusterMode).
@@ -95,7 +93,6 @@ defer cli.Close()
 |--------|-------------|---------|
 | `WithAddr()` | Server or router address | Required |
 | `WithPort()` | TCP port | Required |
-| `WithToken()` | Authentication token | Required |
 | `WithTimeout()` | Request timeout | 2s |
 | `WithKeepAlive()` | TCP keep-alive interval | 30s |
 | `WithMode()` | `StandaloneMode` or `ClusterMode` | `StandaloneMode` |

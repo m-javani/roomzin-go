@@ -37,7 +37,6 @@ func New(cfg *Config) (*Client, error) {
 	icfg := &client.Config{
 		Addr:      cfg.Addr,
 		Port:      cfg.Port,
-		AuthToken: cfg.AuthToken,
 		Timeout:   cfg.Timeout,
 		KeepAlive: cfg.KeepAlive,
 		Mode:      client.ConnectionMode(cfg.Mode),
