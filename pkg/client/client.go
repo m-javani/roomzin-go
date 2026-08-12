@@ -75,9 +75,11 @@ func (c *Client) getCodecs() *types.Codecs {
 	return c.codecs
 }
 
+const codecSegment = "__codecs__"
+
 func (c *Client) fetchCodecs() (*types.Codecs, error) {
 	payload, _ := command.BuildGetCodecsPayload()
-	res, err := c.handler.Execute(c.ctx, "", false, payload) // empty segment for codecs
+	res, err := c.handler.Execute(c.ctx, codecSegment, false, payload)
 	if err != nil {
 		return nil, types.RzError(err)
 	}
