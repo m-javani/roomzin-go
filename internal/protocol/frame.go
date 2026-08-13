@@ -181,3 +181,39 @@ func ParseFields(data []byte, fieldCount uint16) ([]Field, error) {
 
 	return fields, nil
 }
+
+const KeepaliveSegment = "__keepalive__"
+
+func BuildKeepaliveFrame(clrid uint32) []byte {
+	segment := []byte(KeepaliveSegment)
+	segLen := len(segment)
+
+	// Router header + shard header (magic + clrid + 4 bytes empty payload)
+	totalLen := 1 + segLen + 1 + 9
+	buf := make([]byte, 5+totalLen)
+
+	offset := 0
+	buf[offset] = RouterMagicByte
+	offset++
+
+	binary.LittleEndian.PutUint32(buf[offset:offset+4], uint32(totalLen))
+	offset += 4
+
+	buf[offset] = byte(segLen)
+	offset++
+
+	copy(buf[offset:offset+segLen], segment)
+	offset += segLen
+
+	buf[offset] = 0x00 // is_write = false
+	offset++
+
+	buf[offset] = MagicByte
+	offset++
+
+	binary.LittleEndian.PutUint32(buf[offset:offset+4], clrid)
+	offset += 4
+
+	// Empty payload - no extra bytes needed, totalLen already accounts for it
+	return buf
+}

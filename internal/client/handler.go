@@ -37,15 +37,16 @@ type Config struct {
 }
 
 type Handler struct {
-	config      *Config
-	conn        net.Conn
-	nextID      uint32
-	mu          sync.Mutex
-	closed      bool
-	demux       map[uint32]chan protocol.RawResult
-	ctx         context.Context
-	cancel      context.CancelFunc
-	OnReconnect func()
+	config        *Config
+	conn          net.Conn
+	nextID        uint32
+	mu            sync.Mutex
+	closed        bool
+	demux         map[uint32]chan protocol.RawResult
+	ctx           context.Context
+	cancel        context.CancelFunc
+	OnReconnect   func()
+	keepaliveStop chan struct{}
 }
 
 func NewHandler(cfg *Config, ctx context.Context) (*Handler, error) {
@@ -63,7 +64,51 @@ func NewHandler(cfg *Config, ctx context.Context) (*Handler, error) {
 		return nil, err
 	}
 
+	if cfg.Mode == ClusterMode {
+		h.startKeepalive()
+	}
+
 	return h, nil
+}
+
+// Add keepalive methods
+func (h *Handler) startKeepalive() {
+	h.keepaliveStop = make(chan struct{})
+	go h.keepaliveLoop()
+}
+
+func (h *Handler) stopKeepalive() {
+	if h.keepaliveStop != nil {
+		close(h.keepaliveStop)
+	}
+}
+
+func (h *Handler) keepaliveLoop() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// Send keepalive with a dummy clrID (0)
+			frame := protocol.BuildKeepaliveFrame(0)
+			h.mu.Lock()
+			if h.conn != nil && !h.closed {
+				_, err := h.conn.Write(frame)
+				if err != nil {
+					// Connection dead - reconnect will handle it
+					h.mu.Unlock()
+					continue
+				}
+			}
+			h.mu.Unlock()
+
+		case <-h.ctx.Done():
+			return
+		case <-h.keepaliveStop:
+			return
+		}
+	}
 }
 
 func (h *Handler) reconnect() error {
@@ -117,6 +162,7 @@ func (h *Handler) Close() error {
 	}
 	h.closed = true
 	h.cancel()
+	h.stopKeepalive()
 	_ = h.conn.Close()
 
 	for _, ch := range h.demux {
