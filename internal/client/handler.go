@@ -84,7 +84,7 @@ func (h *Handler) stopKeepalive() {
 }
 
 func (h *Handler) keepaliveLoop() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(h.config.KeepAlive)
 	defer ticker.Stop()
 
 	for {
