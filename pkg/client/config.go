@@ -37,8 +37,8 @@ type Config struct {
 	// Timeout is the request timeout
 	Timeout time.Duration
 
-	// KeepAlive is the TCP keep-alive duration
-	KeepAlive time.Duration
+	// KeepAliveSec is the TCP keep-alive duration
+	KeepAliveSec time.Duration
 
 	// Mode determines how the client connects (standalone or cluster via router)
 	Mode ConnectionMode
@@ -53,9 +53,9 @@ type ConfigBuilder struct {
 func NewConfigBuilder() *ConfigBuilder {
 	return &ConfigBuilder{
 		config: Config{
-			Timeout:   2 * time.Second,
-			KeepAlive: 30 * time.Second,
-			Mode:      StandaloneMode, // default for backward compatibility
+			Timeout:      2 * time.Second,
+			KeepAliveSec: 30 * time.Second,
+			Mode:         StandaloneMode, // default for backward compatibility
 		},
 	}
 }
@@ -80,7 +80,7 @@ func (b *ConfigBuilder) WithTimeout(d time.Duration) *ConfigBuilder {
 
 // WithKeepAlive sets the TCP keep-alive duration
 func (b *ConfigBuilder) WithKeepAlive(d time.Duration) *ConfigBuilder {
-	b.config.KeepAlive = d
+	b.config.KeepAliveSec = d
 	return b
 }
 

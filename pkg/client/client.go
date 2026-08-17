@@ -38,7 +38,7 @@ func New(cfg *Config) (*Client, error) {
 		Addr:      cfg.Addr,
 		Port:      cfg.Port,
 		Timeout:   cfg.Timeout,
-		KeepAlive: cfg.KeepAlive,
+		KeepAlive: cfg.KeepAliveSec,
 		Mode:      client.ConnectionMode(cfg.Mode),
 	}
 
