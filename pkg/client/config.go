@@ -54,7 +54,7 @@ func NewConfigBuilder() *ConfigBuilder {
 	return &ConfigBuilder{
 		config: Config{
 			Timeout:      2 * time.Second,
-			KeepAliveSec: 30 * time.Second,
+			KeepAliveSec: 5 * time.Second,
 			Mode:         StandaloneMode, // default for backward compatibility
 		},
 	}
