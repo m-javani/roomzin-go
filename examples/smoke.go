@@ -146,6 +146,12 @@ func main() {
 	}
 	defer client.Close()
 
+	codecs, err := client.GetCodecs()
+	if err != nil {
+		log.Fatalf("Failed to get codecs: %v", err)
+	}
+	fmt.Printf("codecs %+v \n", codecs.RateFeatures)
+
 	// -------------------------------------------------------------------------
 	// STEP 2: Create properties and verify existence
 	// -------------------------------------------------------------------------
