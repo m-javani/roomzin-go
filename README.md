@@ -292,6 +292,14 @@ for _, result := range results {
 }
 ```
 
+### GetCodecs
+Gets the current codec registry (used internally for validation).
+
+```go
+codecs, err := cli.GetCodecs()
+fmt.Println(codecs.RateFeatures)
+```
+
 ---
 
 ## Delete Operations
